@@ -1,0 +1,80 @@
+{
+  "nqubits": 2,
+  "steps": [
+    {
+      "gates": [
+        {
+          "caption": "H",
+          "type": "Hadamard",
+          "targets": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "gates": [
+        {
+          "caption": "Cnot",
+          "type": "Cnot",
+          "targets": [
+            0,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "gates": [
+        {
+          "caption": "M",
+          "type": "Measurement",
+          "targets": [
+            0
+          ]
+        },
+        {
+          "caption": "M",
+          "type": "Measurement",
+          "targets": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "gates": [
+        {
+          "caption": "H",
+          "type": "Hadamard",
+          "targets": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "gates": [
+        {
+          "caption": "X",
+          "type": "X",
+          "targets": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "gates": [
+        {
+          "caption": "Cnot",
+          "type": "Cnot",
+          "targets": [
+            0,
+            1
+          ]
+        }
+      ]
+    }
+  ]
+}

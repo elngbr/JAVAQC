@@ -1,0 +1,573 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Quantum Circuit Studio</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0a0d14;
+    --panel: #111827;
+    --panel-2: #0f172a;
+    --border: #263244;
+    --accent: #7dd3fc;
+    --accent-2: #a78bfa;
+    --text: #e5e7eb;
+    --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    background:
+      radial-gradient(circle at top left, rgba(125, 211, 252, 0.16), transparent 35%),
+      radial-gradient(circle at top right, rgba(167, 139, 250, 0.14), transparent 32%),
+      linear-gradient(180deg, #050816 0%, var(--bg) 100%);
+    color: var(--text);
+  }
+  header { padding: 24px 28px 12px; }
+  h1 {
+    margin: 0 0 8px;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+  }
+  p.subtle { margin: 0; color: var(--muted); }
+  .shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr);
+    gap: 16px;
+    padding: 16px 28px 28px;
+  }
+  .panel {
+    background: rgba(15, 23, 42, 0.86);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+    overflow: hidden;
+  }
+  .panel .inner { padding: 16px; }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(17, 24, 39, 0.85);
+  }
+  label {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  select, textarea, button {
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: #0b1220;
+    color: var(--text);
+    font: inherit;
+  }
+  select, button { min-height: 42px; padding: 0 12px; }
+  textarea {
+    width: 100%;
+    min-height: 470px;
+    padding: 12px;
+    resize: vertical;
+    line-height: 1.45;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: #07101f;
+  }
+  button {
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+  button:hover { transform: translateY(-1px); border-color: #4b5c73; }
+  button.primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #08111f;
+    font-weight: 700;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0 16px 16px;
+  }
+  .actions button { min-height: 36px; font-size: 13px; }
+  .status {
+    margin-left: auto;
+    align-self: center;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  svg {
+    display: block;
+    width: 100%;
+    background: linear-gradient(180deg, #07101d, #0b1322);
+  }
+  .gate { fill:#111; stroke:#ddd; }
+  .wire { stroke:#4d4d4d; stroke-width:2 }
+  text { fill:#eee; font-size:12px }
+  .hint { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  .auth-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(2, 6, 23, 0.82);
+    backdrop-filter: blur(16px);
+    z-index: 20;
+    padding: 20px;
+  }
+  .auth-card {
+    width: min(640px, 100%);
+    background: rgba(15, 23, 42, 0.96);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+    padding: 24px;
+  }
+  .auth-card h2 {
+    margin: 0 0 8px;
+    font-size: 24px;
+  }
+  .auth-grid {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 18px;
+  }
+  .auth-grid .full { grid-column: 1 / -1; }
+  .auth-grid input {
+    min-height: 42px;
+    padding: 0 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: #0b1220;
+    color: var(--text);
+    font: inherit;
+  }
+  .auth-note {
+    color: var(--muted);
+    margin-top: 10px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .locked {
+    filter: blur(7px);
+    pointer-events: none;
+    user-select: none;
+  }
+  @media (max-width: 1100px) {
+    .shell { grid-template-columns: 1fr; }
+    textarea { min-height: 320px; }
+    .auth-grid { grid-template-columns: 1fr; }
+  }
+</style>
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-card">
+    <h2>Pasqal Access</h2>
+    <p class="subtle">Enter the Pasqal email and project ID to unlock the studio and pass the same access profile to Pasqal runs.</p>
+    <div class="auth-grid">
+      <label class="full">
+        Email
+        <input id="authEmail" type="email" autocomplete="email" />
+      </label>
+      <label class="full">
+        Project ID
+        <input id="authProjectId" type="text" autocomplete="off" />
+      </label>
+      <button id="unlock" class="primary full">Unlock Pasqal Studio</button>
+    </div>
+    <div class="auth-note" id="authStatus">This repository expects the Pasqal access profile configured for Elena's account.</div>
+  </div>
+</div>
+<header>
+  <h1>Quantum Circuit Studio</h1>
+  <p class="subtle">Switch examples, edit the circuit JSON, add gates, and preview the result before running a provider.</p>
+</header>
+
+<section class="shell locked" id="appShell">
+  <div class="panel">
+    <div class="toolbar">
+      <label>
+        Example
+        <select id="example"></select>
+      </label>
+      <label>
+        Provider
+        <select id="provider">
+          <option value="local">Local Simulator</option>
+          <option value="ibm">IBM Quantum</option>
+          <option value="google">Google Cirq</option>
+          <option value="azure">Azure Quantum</option>
+          <option value="xanadu">Xanadu</option>
+          <option value="qiskit">Qiskit</option>
+          <option value="dwave">D-Wave</option>
+          <option value="qmware">QMware</option>
+          <option value="pasqual">Pasqual</option>
+        </select>
+      </label>
+      <div class="status" id="status">Loading...</div>
+    </div>
+    <div class="actions">
+      <button id="loadExample">Load Example</button>
+      <button id="applyJson">Apply JSON</button>
+      <button id="addH">Add H</button>
+      <button id="addX">Add X</button>
+      <button id="addM">Add M</button>
+      <button id="addCnot">Add CNOT</button>
+      <button id="run" class="primary">Run / Preview</button>
+    </div>
+    <div class="inner">
+      <svg id="svg" width="1000" height="300"></svg>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="toolbar" style="justify-content: space-between;">
+      <strong>Circuit JSON</strong>
+      <span class="hint">Edit this directly or use the gate buttons.</span>
+    </div>
+    <div class="inner">
+      <textarea id="editor" spellcheck="false"></textarea>
+    </div>
+  </div>
+</section>
+
+<script>
+const PASQAL_DEFAULT_EMAIL = 'elenaeft07@gmail.com';
+const PASQAL_DEFAULT_PROJECT_ID = '591eb05c-88c2-4ca5-b228-5fd91e64855f';
+const examples = {
+  bell: {
+    nqubits: 2,
+    steps: [
+      { gates: [{ caption: 'H', type: 'Hadamard', targets: [0] }] },
+      { gates: [{ caption: 'Cnot', type: 'Cnot', targets: [0, 1] }] },
+      { gates: [{ caption: 'M', type: 'Measurement', targets: [0] }, { caption: 'M', type: 'Measurement', targets: [1] }] }
+    ]
+  },
+  ghz: {
+    nqubits: 3,
+    steps: [
+      { gates: [{ caption: 'H', type: 'Hadamard', targets: [0] }] },
+      { gates: [{ caption: 'Cnot', type: 'Cnot', targets: [0, 1] }] },
+      { gates: [{ caption: 'Cnot', type: 'Cnot', targets: [0, 2] }] },
+      { gates: [{ caption: 'M', type: 'Measurement', targets: [0] }, { caption: 'M', type: 'Measurement', targets: [1] }, { caption: 'M', type: 'Measurement', targets: [2] }] }
+    ]
+  },
+  swap: {
+    nqubits: 2,
+    steps: [
+      { gates: [{ caption: 'X', type: 'X', targets: [0] }] },
+      { gates: [{ caption: 'Swap', type: 'Swap', targets: [0, 1] }] },
+      { gates: [{ caption: 'M', type: 'Measurement', targets: [0] }, { caption: 'M', type: 'Measurement', targets: [1] }] }
+    ]
+  },
+  toffoli: {
+    nqubits: 3,
+    steps: [
+      { gates: [{ caption: 'H', type: 'Hadamard', targets: [2] }] },
+      { gates: [{ caption: 'Toffoli', type: 'Toffoli', targets: [0, 1, 2] }] },
+      { gates: [{ caption: 'M', type: 'Measurement', targets: [0] }, { caption: 'M', type: 'Measurement', targets: [1] }, { caption: 'M', type: 'Measurement', targets: [2] }] }
+    ]
+  }
+};
+
+let currentProgram = deepClone(examples.bell);
+let pasqalCredentials = {
+  email: PASQAL_DEFAULT_EMAIL,
+  projectId: PASQAL_DEFAULT_PROJECT_ID
+};
+let pasqalUnlocked = false;
+
+function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
+function setStatus(text) { document.getElementById('status').textContent = text; }
+function renderEditor() { document.getElementById('editor').value = JSON.stringify(currentProgram, null, 2); }
+
+function normalize(value) { return (value || '').trim(); }
+
+function isPasqalUnlocked() {
+  return pasqalUnlocked &&
+    normalize(pasqalCredentials.email) === PASQAL_DEFAULT_EMAIL &&
+    normalize(pasqalCredentials.projectId) === PASQAL_DEFAULT_PROJECT_ID;
+}
+
+function credentialsMatchDefaults() {
+  return normalize(pasqalCredentials.email) === PASQAL_DEFAULT_EMAIL &&
+    normalize(pasqalCredentials.projectId) === PASQAL_DEFAULT_PROJECT_ID;
+}
+
+function syncAuthFields() {
+  document.getElementById('authEmail').value = pasqalCredentials.email;
+  document.getElementById('authProjectId').value = pasqalCredentials.projectId;
+}
+
+function unlockStudio() {
+  pasqalCredentials = {
+    email: normalize(document.getElementById('authEmail').value),
+    projectId: normalize(document.getElementById('authProjectId').value)
+  };
+  if (!credentialsMatchDefaults()) {
+    document.getElementById('authStatus').textContent = 'Credentials do not match the configured Pasqal access profile.';
+    return;
+  }
+  pasqalUnlocked = true;
+  localStorage.setItem('pasqalCredentials', JSON.stringify({
+    ...pasqalCredentials,
+    unlocked: true
+  }));
+  document.getElementById('authOverlay').style.display = 'none';
+  document.getElementById('appShell').classList.remove('locked');
+  setStatus('Pasqal access granted');
+}
+
+function parseEditor() {
+  const raw = document.getElementById('editor').value;
+  const parsed = JSON.parse(raw);
+  if (!parsed || typeof parsed.nqubits !== 'number' || !Array.isArray(parsed.steps)) {
+    throw new Error('Invalid circuit JSON');
+  }
+  return parsed;
+}
+
+function loadProgram(program) {
+  currentProgram = deepClone(program);
+  renderEditor();
+  draw(currentProgram);
+}
+
+function loadExample() {
+  const name = document.getElementById('example').value;
+  loadProgram(examples[name] || examples.bell);
+  setStatus('Example loaded');
+}
+
+function normalizeStep(step) {
+  if (!step.gates) step.gates = [];
+  return step;
+}
+
+function addGate(gateType) {
+  const program = parseEditor();
+  const targets = gateType === 'Cnot' ? [0, Math.min(1, Math.max(0, program.nqubits - 1))] :
+    gateType === 'Toffoli' ? [0, Math.min(1, Math.max(0, program.nqubits - 1)), Math.max(0, program.nqubits - 1)] :
+    [0];
+  const captions = { Hadamard: 'H', X: 'X', Measurement: 'M', Cnot: 'Cnot', Toffoli: 'Toffoli' };
+  program.steps.push(normalizeStep({ gates: [{ caption: captions[gateType] || gateType, type: gateType, targets }] }));
+  currentProgram = program;
+  renderEditor();
+  draw(currentProgram);
+  setStatus(gateType + ' added');
+}
+
+const storedCredentials = localStorage.getItem('pasqalCredentials');
+if (storedCredentials) {
+  try {
+    const parsedCredentials = JSON.parse(storedCredentials);
+    pasqalCredentials = {
+      email: parsedCredentials.email || PASQAL_DEFAULT_EMAIL,
+      projectId: parsedCredentials.projectId || PASQAL_DEFAULT_PROJECT_ID
+    };
+    pasqalUnlocked = Boolean(parsedCredentials.unlocked);
+  } catch (e) {
+    pasqalCredentials = {
+      email: PASQAL_DEFAULT_EMAIL,
+      projectId: PASQAL_DEFAULT_PROJECT_ID
+    };
+    pasqalUnlocked = false;
+  }
+}
+syncAuthFields();
+if (isPasqalUnlocked()) {
+  document.getElementById('authOverlay').style.display = 'none';
+  document.getElementById('appShell').classList.remove('locked');
+  setStatus('Pasqal access granted');
+}
+
+document.getElementById('unlock').addEventListener('click', unlockStudio);
+
+fetch('/api/examples').then(r => r.json()).then(list => {
+  const sel = document.getElementById('example');
+  sel.innerHTML = '';
+  list.forEach(n => {
+    const o = document.createElement('option');
+    o.value = n;
+    o.textContent = n;
+    sel.appendChild(o);
+  });
+}).catch(() => {});
+
+fetch('/api/providers').then(r => r.json()).then(list => {
+  const sel = document.getElementById('provider');
+  while (sel.options.length > 1) sel.remove(1);
+  list.forEach(p => {
+    if (p !== 'local') {
+      const o = document.createElement('option');
+      o.value = p;
+      o.textContent = p.charAt(0).toUpperCase() + p.slice(1);
+      sel.appendChild(o);
+    }
+  });
+}).catch(() => {});
+
+document.getElementById('loadExample').addEventListener('click', loadExample);
+document.getElementById('applyJson').addEventListener('click', () => {
+  try {
+    loadProgram(parseEditor());
+    setStatus('JSON applied');
+  } catch (e) {
+    setStatus('Invalid JSON');
+    alert(e.message);
+  }
+});
+document.getElementById('addH').addEventListener('click', () => addGate('Hadamard'));
+document.getElementById('addX').addEventListener('click', () => addGate('X'));
+document.getElementById('addM').addEventListener('click', () => addGate('Measurement'));
+document.getElementById('addCnot').addEventListener('click', () => addGate('Cnot'));
+
+document.getElementById('run').addEventListener('click', () => {
+  if (!isPasqalUnlocked()) {
+    setStatus('Unlock Pasqal first');
+    document.getElementById('authOverlay').style.display = 'flex';
+    return;
+  }
+  const ex = document.getElementById('example').value;
+  const provider = document.getElementById('provider').value;
+  let program = null;
+  try {
+    program = parseEditor();
+  } catch (e) {
+    setStatus('Invalid JSON');
+    alert(e.message);
+    return;
+  }
+  setStatus('Running...');
+  fetch('/api/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      example: ex,
+      provider: provider,
+      program: program,
+      pasqalEmail: pasqalCredentials.email,
+      pasqalProjectId: pasqalCredentials.projectId
+    })
+  })
+    .then(r => { if (!r.ok) throw new Error('Run failed'); return r.json(); })
+    .then(draw)
+    .then(() => setStatus('Done'))
+    .catch(e => { setStatus('Error'); document.body.insertAdjacentHTML('beforeend', '<pre style="color:#f88">' + e + '</pre>'); });
+});
+
+fetch('program.json').then(r => r.json()).then(loadProgram).catch(() => loadProgram(examples.bell));
+
+function draw(prog) {
+  const svg = document.getElementById('svg');
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  const n = prog.nqubits;
+  const cols = prog.steps.length;
+  const cellW = 90, rowH = 56, left = 100;
+  svg.setAttribute('width', left + cols * cellW + 40);
+  svg.setAttribute('height', 40 + n * rowH + 40);
+
+  for (let q = 0; q < n; q++) {
+    const y = 30 + q * rowH;
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', 8);
+    text.setAttribute('y', y + 6);
+    text.textContent = 'q_' + q + ':';
+    svg.appendChild(text);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', left);
+    line.setAttribute('y1', y);
+    line.setAttribute('x2', left + cols * cellW);
+    line.setAttribute('y2', y);
+    line.setAttribute('class', 'wire');
+    svg.appendChild(line);
+  }
+
+  prog.steps.forEach((step, c) => {
+    step.gates.forEach(g => {
+      if (!g.targets || g.targets.length === 0) return;
+      if (g.targets.length === 1) {
+        const q = g.targets[0];
+        const x = left + c * cellW + 15;
+        const y = 30 + q * rowH - 12;
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', x);
+        rect.setAttribute('y', y);
+        rect.setAttribute('width', 60);
+        rect.setAttribute('height', 24);
+        rect.setAttribute('class', 'gate');
+        rect.setAttribute('stroke', '#ccc');
+        svg.appendChild(rect);
+        const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        t.setAttribute('x', x + 30);
+        t.setAttribute('y', y + 17);
+        t.setAttribute('text-anchor', 'middle');
+        t.textContent = g.caption || g.type;
+        svg.appendChild(t);
+      } else if (g.targets.length === 2) {
+        const q1 = g.targets[0], q2 = g.targets[1];
+        const x = left + c * cellW + 45;
+        const y1 = 30 + q1 * rowH;
+        const y2 = 30 + q2 * rowH;
+        const c1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        c1.setAttribute('cx', x);
+        c1.setAttribute('cy', y1);
+        c1.setAttribute('r', 6);
+        c1.setAttribute('fill', '#222');
+        c1.setAttribute('stroke', '#ccc');
+        svg.appendChild(c1);
+        const tx = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        tx.setAttribute('cx', x);
+        tx.setAttribute('cy', y2);
+        tx.setAttribute('r', 10);
+        tx.setAttribute('fill', '#111');
+        tx.setAttribute('stroke', '#ccc');
+        svg.appendChild(tx);
+        const lx = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        lx.setAttribute('x1', x);
+        lx.setAttribute('y1', y1);
+        lx.setAttribute('x2', x);
+        lx.setAttribute('y2', y2);
+        lx.setAttribute('stroke', '#ccc');
+        lx.setAttribute('stroke-width', 2);
+        svg.appendChild(lx);
+      } else if (g.targets.length > 2) {
+        const xs = left + c * cellW + 45;
+        const ys = g.targets.map(q => 30 + q * rowH);
+        ys.forEach((y, idx) => {
+          if (idx < ys.length - 1) {
+            const c1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            c1.setAttribute('cx', xs);
+            c1.setAttribute('cy', y);
+            c1.setAttribute('r', 6);
+            c1.setAttribute('fill', '#222');
+            c1.setAttribute('stroke', '#ccc');
+            svg.appendChild(c1);
+          } else {
+            const tx = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            tx.setAttribute('cx', xs);
+            tx.setAttribute('cy', y);
+            tx.setAttribute('r', 10);
+            tx.setAttribute('fill', '#111');
+            tx.setAttribute('stroke', '#ccc');
+            svg.appendChild(tx);
+          }
+        });
+        const lx = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        lx.setAttribute('x1', xs);
+        lx.setAttribute('y1', ys[0]);
+        lx.setAttribute('x2', xs);
+        lx.setAttribute('y2', ys[ys.length - 1]);
+        lx.setAttribute('stroke', '#ccc');
+        lx.setAttribute('stroke-width', 2);
+        svg.appendChild(lx);
+      }
+    });
+  });
+}
+</script>
