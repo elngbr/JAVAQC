@@ -35,7 +35,7 @@ Store the Pasqal credentials:
 ```bash
 az keyvault secret set --vault-name my-vault --name pasqal-client-id --value "YOUR_CLIENT_ID"
 az keyvault secret set --vault-name my-vault --name pasqal-client-secret --value "YOUR_CLIENT_SECRET"
-az keyvault secret set --vault-name my-vault --name pasqal-project-id --value "591eb05c-88c2-4ca5-b228-5fd91e64855f"
+az keyvault secret set --vault-name my-vault --name pasqal-project-id --value "YOUR_PROJECT_ID"
 ```
 
 ## HashiCorp Vault

@@ -156,7 +156,14 @@ That path gives you the full circuit life cycle from definition to output.
 
 ## Quick Start
 
-Build and run the local simulator:
+### Run locally without secrets
+
+Prerequisites:
+
+- Java 17 or newer
+- Maven 3.8+
+
+From the project root, build and run the local simulator:
 
 ```bash
 mvn test
@@ -175,6 +182,15 @@ Export structured JSON for browser rendering:
 ```bash
 java -cp target/classes org.redfx.strange.demo.TextDemo --export-json site/program.json
 ```
+
+For a simple browser preview, you can also serve the bundled site files:
+
+```bash
+cd site
+python3 server.py
+```
+
+Cloud execution is optional. The local simulator works without secrets and should be the default path for new users.
 
 ## Cloud Providers
 
